@@ -1,15 +1,16 @@
-import cls from './BookList.module.css'
-import { BookListItem } from "../BookListItem/BookListItem";
-import { memo } from "react";
-import { Book } from "../../types/book";
+import cls from './BookList.module.scss'
+import {BookListItem} from "../BookListItem/BookListItem";
+import {memo} from "react";
+import {Book} from "../../types/book";
+import {classNames} from "../../../../shared/lib/classNames/classNames";
 
 interface BookListProps {
+    className?: string
     books: Book[]
-    isLoading?: boolean
+    isLoading: boolean
 }
 
-export const BookList = memo(({books, isLoading}: BookListProps) => {
-
+export const BookList = memo(({className, books, isLoading}: BookListProps) => {
     const renderBook = (book: Book) => {
         return (
             <BookListItem
@@ -20,20 +21,26 @@ export const BookList = memo(({books, isLoading}: BookListProps) => {
     }
 
     if (isLoading) {
+        const placeholders = new Array(12).fill(null)
+
         return (
-            <div className={cls.BookList}>
-                <div className={cls.ldsRing}>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                </div>
+            <div className={classNames(cls.BookList, {}, [className])}>
+                {placeholders.map((_, index) => (
+                    <div key={index} className={cls.BookListItem}>
+                        <div className={cls.ldsRing}>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                            <div></div>
+                        </div>
+                    </div>
+                ))}
             </div>
-        )
+        );
     }
 
     return (
-        <div className={cls.BookList}>
+        <div className={classNames(cls.BookList, {}, [className])}>
             {books.length > 0
                 ? books.map(renderBook)
                 : null

@@ -1,0 +1,25 @@
+.BookForm {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.input {
+  width: 300px;
+}
+
+.bookBtn {
+  width: 50%;
+  padding: 5px;
+  margin-top: 15px;
+  color: white;
+  background: #ff4f61;
+  border: 1px solid #9f0000;
+  border-radius: 15px;
+  font-size: 20px;
+}
+
+.error {
+  color: red;
+}

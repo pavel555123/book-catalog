@@ -1,0 +1,31 @@
+.newBookBtn {
+  padding: 15px;
+  border-radius: 15px;
+  border: none;
+  color: white;
+  background: #fd7878;
+  cursor: pointer;
+}
+
+.newBookBtn:hover {
+  opacity: 0.9;
+}
+
+.allBooksText {
+  margin-top: 30px;
+  color: #fd7878;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.list {
+  margin-top: 20px;
+}
+
+.recBooksText {
+  color: #fd7878;
+}
+
+.recItem {
+  margin-top: 20px;
+}

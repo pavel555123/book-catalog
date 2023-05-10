@@ -1,16 +1,19 @@
 .BookList {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
-    gap: 50px;
+    gap: 30px;
 }
 
 .ldsRing {
-    display: inline-block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 200px;
+    height: 350px;
 }
+
 .ldsRing div {
     box-sizing: border-box;
     display: block;
@@ -18,20 +21,24 @@
     width: 64px;
     height: 64px;
     margin: 8px;
-    border: 8px solid #dfc;
+    border: 8px solid #fd7878;
     border-radius: 50%;
     animation: ldsRing 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-    border-color: #dfc transparent transparent transparent;
+    border-color: #fd7878 transparent transparent transparent;
 }
+
 .ldsRing div:nth-child(1) {
     animation-delay: -0.45s;
 }
+
 .ldsRing div:nth-child(2) {
     animation-delay: -0.3s;
 }
+
 .ldsRing div:nth-child(3) {
     animation-delay: -0.15s;
 }
+
 @keyframes ldsRing {
     0% {
         transform: rotate(0deg);
@@ -40,4 +47,3 @@
         transform: rotate(360deg);
     }
 }
-
