@@ -5,13 +5,16 @@ import {useCallback, useContext, useEffect, useState} from "react";
 import {BookModal} from "features/AddNewBook";
 import {Context} from "App";
 import {BookListItem} from "entities/Book/ui/BookListItem/BookListItem";
+import {collectionRefs, fetchBooks} from "entities/Book/services/getBooks";
 
 export const MainPage = () => {
     const {firestore, books, setBooks} = useContext(Context)
 
     const [bestBook, setBestBook] = useState<Book>()
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(false)
     const [isModal, setIsModal] = useState(false)
+    const [isRating, setIsRating] = useState(localStorage.getItem('isRating') === 'true' || false);
+    const [isAuthor, setIsAuthor] = useState(localStorage.getItem('isAuthor') === 'true' || false);
 
     const onCloseModal = useCallback(() => {
         setIsModal(false)
@@ -21,77 +24,79 @@ export const MainPage = () => {
         setIsModal(true)
     }, [])
 
-    useEffect(() => {
-        fetchBooks()
-        fetchBestBook()
-    }, [])
+    const handleSort = (field: string) => {
+        setIsRating(field === 'Rating')
+        setIsAuthor(field === 'Author')
 
-    async function fetchBooks() {
+        localStorage.setItem('isRating', (field === 'Rating').toString());
+        localStorage.setItem('isAuthor', (field === 'Author').toString());
+    }
+
+    const fetchData = async () => {
         setIsLoading(true)
-        const collectionRefs = [
-            firestore.collection("2020"),
-            firestore.collection("2018"),
-            firestore.collection("2015"),
-            firestore.collection("Books without a year")
-        ];
+
         try {
-            const [booksFrom2020, booksFrom2018, booksFrom2015, booksWithoutYear] = await Promise.all(
-                collectionRefs.map((ref) =>
-                    ref.get().then((snapshot: { docs: any[] }) => snapshot.docs.map((doc) => doc.data()))
-                )
-            );
-            const allBooks = [...booksFrom2020, ...booksFrom2018, ...booksFrom2015, ...booksWithoutYear]
-            setBooks(allBooks)
+            const collectionRefsArray = await collectionRefs(firestore)
+            let fetchedBooks = await fetchBooks(collectionRefsArray)
+
+            if (isRating) {
+                fetchedBooks = fetchedBooks.sort((a, b) => (b.Rating || 0) - (a.Rating || 0))
+            }
+            if (isAuthor) {
+                fetchedBooks = fetchedBooks.sort((a, b) => a.Author.localeCompare(b.Author, undefined, {sensitivity: 'base'}))
+            }
+
+            setBooks(fetchedBooks)
         } catch (error) {
             console.error(error)
         } finally {
             setIsLoading(false)
         }
-    }
+    };
+
+    useEffect(() => {
+        fetchData()
+        fetchBestBook()
+    }, [firestore, isAuthor, isRating, setBooks])
 
     async function fetchBestBook() {
-        const collectionRefs = [
-            firestore.collection('2020'),
-            firestore.collection('2018'),
-            firestore.collection('2015'),
-            firestore.collection('Books without a year')
-        ];
+        const collectionRefsArray = await collectionRefs(firestore);
 
         try {
-            const goodBooks = await Promise.all(
-                collectionRefs.map((ref) =>
+            const querySnapshots = await Promise.all(
+                collectionRefsArray.map((ref) =>
                     ref.where('PublicationYear', '>=', 2020).orderBy('PublicationYear', 'desc').get()
                 )
-            ).then((querySnapshots) =>
-                querySnapshots.flatMap((snapshot) => snapshot.docs.map((doc) => doc.data() as Book))
             );
 
-            const sortedBooks = goodBooks.sort((a, b) => (b.Rating || 0) - (a.Rating || 0))
+            const goodBooks = querySnapshots.flatMap((snapshot) => snapshot.docs.map((doc) => doc.data() as Book));
+
+            const sortedBooks = goodBooks.sort((a, b) => (b.Rating || 0) - (a.Rating || 0));
 
             const recommendedBooksRef = firestore.collection('Recommended book');
 
-            const existingBooksSnapshot = await recommendedBooksRef.get();
-            existingBooksSnapshot.forEach((doc) => {
-                doc.ref.delete();
+            await recommendedBooksRef.get().then((existingBooksSnapshot) => {
+                existingBooksSnapshot.forEach((doc) => doc.ref.delete());
             });
 
-            const recommendedBooks = sortedBooks.filter(
-                (book) => book.Rating === sortedBooks[0].Rating
-            )
+            const recommendedBooks = sortedBooks.filter((book) => book.Rating === sortedBooks[0].Rating);
 
-            const index = Math.floor(Math.random() * recommendedBooks.length)
-            const bestBook = recommendedBooks[index]
+            const index = Math.floor(Math.random() * recommendedBooks.length);
+            const bestBook = recommendedBooks[index];
 
-            await recommendedBooksRef.doc(bestBook.name).set(bestBook)
-            setBestBook(bestBook)
+            await recommendedBooksRef.doc(bestBook.name).set(bestBook);
+            setBestBook(bestBook);
         } catch (error) {
-            console.error(error)
+            console.error(error);
         }
     }
 
     return (
         <div>
             <button className={cls.newBookBtn} onClick={onShowModal}>Add new book</button>
+            <button className={cls.sortBtn} onClick={() => handleSort('Year')}>Sort by Year</button>
+            <button className={cls.sortBtn} onClick={() => handleSort('Rating')}>Sort by Rating</button>
+            <button className={cls.sortBtn} onClick={() => handleSort('Author')}>Sort by Author</button>
             <BookModal isOpen={isModal} onClose={onCloseModal}/>
             <p className={cls.allBooksText}>All Books:</p>
             <BookList
@@ -100,7 +105,7 @@ export const MainPage = () => {
                 isLoading={isLoading}
             />
             <p className={cls.recBooksText} style={{fontWeight: 700, fontSize: 30}}>Recommendation Book:</p>
-            <BookListItem className={cls.recItem} book={bestBook} notDelete/>
+            {bestBook ? <BookListItem className={cls.recItem} book={bestBook} notDelete/> : <p>No good books</p>}
         </div>
     )
 }

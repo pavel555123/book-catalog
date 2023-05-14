@@ -1,45 +1,87 @@
-import cls from './BookForm.module.scss'
-import {memo, useContext} from "react";
-import {classNames} from "shared/lib/classNames/classNames";
-import {Context} from "App";
-import {useForm} from 'react-hook-form';
+import {memo, useContext, useEffect} from "react";
 import {Book} from "entities/Book";
+import {Context} from "App";
+import {classNames} from "../../shared/lib/classNames/classNames";
+import cls from "../AddNewBook/ui/BookForm/BookForm.module.scss";
+import {useForm} from "react-hook-form";
 import {collectionRefs, fetchBooks} from "entities/Book/services/getBooks";
 
-interface BookFormProps {
+interface BookEditFormProps {
     className?: string
+    book: Book
 }
 
-export const BookForm = memo(({className}: BookFormProps) => {
+export const EditBookForm = memo(({className, book}: BookEditFormProps) => {
 
-    const {firestore, books, setBooks} = useContext(Context)
-    const {register, handleSubmit, reset, formState: {errors}} = useForm<Book>()
+    const {firestore, books, setBooks} = useContext(Context);
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        formState: {errors},
+    } = useForm<Book>();
+
+    useEffect(() => {
+        if (book) {
+            setValue('name', book.name);
+            setValue('Author', book.Author);
+            setValue('PublicationYear', book.PublicationYear);
+            setValue('Rating', book.Rating);
+            setValue('image', book.image);
+            setValue('ISBN', book.ISBN);
+        }
+    }, [book, setValue]);
+
     const onSubmit = async (data: Book) => {
-        const booksRef = !data.PublicationYear ? firestore.collection('Books without a year') : firestore.collection(String(data.PublicationYear))
-        const docRef = booksRef.doc(data.name)
+        const booksRef = !book.PublicationYear ? firestore.collection('Books without a year') : firestore.collection(String(book.PublicationYear))
+        const docRef = booksRef.doc(book.name)
+
         const bookData: Book = {
             name: data.name,
             Author: data.Author
         }
 
-        if (data.PublicationYear) {
-            bookData.PublicationYear = Number(data.PublicationYear)
-        }
         if (data.Rating) {
             bookData.Rating = Number(data.Rating)
+        } else {
+            delete bookData.Rating
         }
+
         if (data.image) {
             bookData.image = data.image
+        } else {
+            delete bookData.image
         }
+
         if (data.ISBN) {
             bookData.ISBN = data.ISBN
+        } else {
+            delete bookData.ISBN
+        }
+
+        if (data.PublicationYear !== book.PublicationYear) {
+            if (data.PublicationYear) {
+                bookData.PublicationYear = Number(data.PublicationYear)
+                const newBooksCollection = firestore.collection(String(data.PublicationYear))
+                await newBooksCollection.doc(data.name).set(bookData);
+            } else {
+                delete bookData.PublicationYear
+                const newBooksCollection = firestore.collection('Books without a year')
+                await newBooksCollection.doc(data.name).set(bookData)
+            }
+            await docRef.delete()
+        } else if (data.name !== book.name) {
+            await booksRef.doc(data.name).set(bookData)
+            await docRef.delete()
+        } else {
+            bookData.PublicationYear = Number(data.PublicationYear)
+            await booksRef.doc(data.name).set(bookData)
         }
 
         try {
-            await docRef.set(bookData)
-            console.log('Document written with ID:', docRef.id)
-
-            setBooks([...books, bookData])
+            console.log('Document updated:', docRef.id)
+            const updatedBooks = books.map((b) => (b.name === book.name ? {...b, ...bookData} : b));
+            setBooks(updatedBooks)
 
             const collectionRefsArray = await collectionRefs(firestore)
             const fetchedBooks = await fetchBooks(collectionRefsArray)
@@ -48,16 +90,16 @@ export const BookForm = memo(({className}: BookFormProps) => {
                 fetchedBooks.sort((a, b) => (b.Rating || 0) - (a.Rating || 0))
             }
             if (localStorage.getItem('isAuthor') === 'true') {
-                fetchedBooks.sort((a, b) => a.Author.localeCompare(b.Author, undefined, { sensitivity: 'base' }))
+                fetchedBooks.sort((a, b) =>
+                    a.Author.localeCompare(b.Author, undefined, {sensitivity: 'base'})
+                );
             }
 
-            console.log(fetchedBooks, 'books')
             setBooks(fetchedBooks)
         } catch (error) {
-            console.error('Error adding document:', error)
+            console.error('Error updating document:', error)
         }
-        reset()
-    }
+    };
 
     return (
         <form className={classNames(cls.BookForm, {}, [className])} onSubmit={handleSubmit(onSubmit)}>
@@ -85,7 +127,7 @@ export const BookForm = memo(({className}: BookFormProps) => {
                     {...register('PublicationYear', {
                         pattern: /^[1-9]\d{3}$/,
                         validate: (value) => {
-                            if (String(value) === '') {
+                            if (!value) {
                                 return true
                             }
                             const year = Number(value);
@@ -126,3 +168,5 @@ export const BookForm = memo(({className}: BookFormProps) => {
         </form>
     )
 })
+
+
